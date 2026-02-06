@@ -1,0 +1,43 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Helper function to check if user is authenticated
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    // Helper function to check if user calculates to an admin
+    // Note: You need to set custom claims or store role in user document
+    // For this simple example, we assume any authenticated user on this dashboard is an admin
+    // OR we check a 'role' field on the user document.
+    function isAdmin() {
+       return isAuthenticated() && 
+         (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin');
+    }
+
+    // Users Collection
+    // Admins can read/write everything. 
+    // Users can read/write their own data (optional, depends on app).
+    match /users/{userId} {
+      allow read, write: if isAdmin();
+      allow read: if request.auth.uid == userId;
+    }
+
+    // Ride Requests
+    match /ride_requests/{rideId} {
+      allow read, write: if isAdmin();
+      // Riders and Drivers can read/create/update specific fields (not covered here, assumed separate app logic)
+    }
+
+    // Drivers
+    match /drivers/{driverId} {
+      allow read, write: if isAdmin();
+    }
+
+    // Driver Tokens
+    match /driverTokens/{tokenId} {
+      allow read, write: if isAdmin();
+    }
+  }
+}
